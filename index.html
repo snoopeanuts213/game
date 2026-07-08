@@ -129,13 +129,10 @@
 		return value !== null && typeof value === 'object' && 'a' in value && 'b' in value;
 	}
 	
-	function preload() {
-		textFont("Kosugi Maru");
-	}
-	
 	function setup() {
 		createCanvas(windowWidth, windowHeight);
 		frameRate(fps);
+		textFont("Kosugi Maru");
 	}
 	
 	function windowResized() {
