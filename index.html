@@ -3,6 +3,10 @@
 <head>
 	<meta charset="UTF-8">
 	<title>テスト</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&display=swap" rel="stylesheet">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
 	<style>
 		body { 
@@ -19,23 +23,231 @@
 <body>
 
 <script>
+	const ThemeColor = [["#282828"], 	//background
+							  ["#1F1F1F"]];	//tilte bar
+	const fps = 30;
+	let isResizing = false;
+	let CurrentPage = 0;
+	let MainWidth = 0;
+	let MainHeight = 0;
+	let TitleHeight = 0;
+	let e = {
+		count : 1,
+		period : 10, //second (MilliSecond * 1e3)
+		progress : [0],
+		y : [0.5]
+	};
+	const game = {
+		assets : {
+			font : null
+		},
+		electron : {
+			eV : {
+				a : 0,
+				b : 0
+			}
+		}
+	}
+
+	const BigNumber = {
+    	normalize: function(num) {
+			if (num.a === 0) {
+				num.b = 0;
+				return num;
+			}
+			while (num.a >= 10) {
+				num.a /= 10;
+				num.b++;
+			}
+			while (num.a < 1 && num.a > 0) {
+				num.a *= 10;
+				num.b--;
+			}
+			num.a = Math.round(num.a * 1000000000) / 1000000000;
+			return num;
+		},
+
+		add: function(num1, num2) {
+			let n = num2
+			if (!isBigNumber(n)) {
+				n = { a : n, b : 0 }
+				this.normalize(n)
+			}
+			let result = num1
+			let diff = result.b - n.b;
+			if (diff >= 0) {
+				if (diff <= 10) {
+					result.a += Math.round(n.a * Math.pow(10, 10 - diff)) / Math.pow(10, 10 - diff) / Math.pow(10, diff);
+				}
+			} else {
+				if (-diff <= 10) {
+					result.a = n.a + num1.a / Math.pow(10, -diff);
+				} else {
+					result.a = n.a;
+				}
+				result.b = n.b;
+			}
+			return this.normalize(result);
+		},
+
+		sub: function(num1, num2) {
+			let n = num2;
+			if (!isBigNumber(n)) {
+				n = { a : n, b : 0 }
+				this.normalize(n)
+			}
+			let result = num1;
+			if (!isBigNumber(result)) {
+				result = { a : result, b : 0 }
+				this.normalize(result)
+			}
+			let diff = result.b - n.b;
+			if (diff >= 0) {
+				if (diff <= 10) {
+					result.a -= Math.round(n.a * Math.pow(10, 9 - diff)) / Math.pow(10, 9 - diff) / Math.pow(10, diff);
+				}
+			} else {
+				return {a : -1, b : 0};
+			}
+			return this.normalize(result);
+		},
+
+		format: function(num) {
+			if (num.b < 9) {
+				let normalNum = Math.floor(num.a * Math.pow(10, num.b));
+				return normalNum.toLocaleString();
+			}
+			return num.a.toFixed(2) + "e" + num.b;
+		},
+
+		isBig : function(num1, num2) {
+			return this.sub(num1, num2).a >= 0;
+		}
+	};
+	
+	function isBigNumber(value) {
+		return value !== null && typeof value === 'object' && 'a' in value && 'b' in value;
+	}
+	
+	function preload() {
+		game.assets.font = loadFont("KosugiMaru-Regular.ttf");
+	}
+	
 	function setup() {
 		createCanvas(windowWidth, windowHeight);
-		frameRate(3);
+		frameRate(fps);
 	}
 	
 	function windowResized() {
+		isResizing = true;
 		resizeCanvas(windowWidth, windowHeight);
 	}
 	
 	function draw() {
-		background(15, 20, 30)
-		stroke(89, 227, 222)
-		noFill()
-		rect(1,1,width-1,height-1)
-		textSize(16);
-   	textAlign(CENTER,CENTER);
-		text(`${width},${height}`,width/2,height/2)
+		TitleHeight = (height * 0.1 > 70 ? height * 0.1 : 70);
+		background(ThemeColor[0][CurrentPage])
+		if (height * 1.5 < width) {
+			MainWidth = width * 0.8;
+			MainHeight = height - TitleHeight;
+			fill(75)
+			stroke(0)
+			strokeWeight(1)
+			rect(width * 0.8, TitleHeight, width, height)
+			fill(ThemeColor[1][CurrentPage])
+			rect(-1, -1, width, TitleHeight + 1)
+			noStroke()
+			fill("#0F0F0F80")
+			rect(-1, TitleHeight, width + 1, TitleHeight * 0.1)
+			switch (CurrentPage) {
+				case 0:
+					DrawElectic();
+					break;
+				case 1:
+					break;
+				default :
+					break;
+			}
+		} else {
+			fill(63,63,63);
+			stroke(60,70,80);
+			textAlign(CENTER,CENTER)
+			textSize(TitleHeight * 0.4)
+			text("ポーズ中\n横画面でプレイしてください！", width / 2, height / 2)
+		}
+	}
+
+	function DrawElectic() {
+		let capacitorX = MainWidth / 2;
+		let boxTop = TitleHeight + MainHeight * 0.15;
+		let boxLeft = MainWidth / 4;
+		let boxHeight = MainHeight / 2;
+		let boxWidth = MainWidth / 2;
+		let fieldWidth = (0.51 - 0.49) * (MainWidth / 2);
+		let Delta = deltaTime;
+		fill(60,60,90)
+		stroke(0)
+		rect(width * 0.03, -1, width * 0.2, TitleHeight + 1)
+		textSize(TitleHeight * 0.4)
+		fill(255)
+		noStroke()
+		textAlign(RIGHT,CENTER);
+		text(`${BigNumber.format(game.electron.eV)}eV`,width * 0.22, TitleHeight * 0.5)
+		fill(63,63,63);
+		stroke(60,70,80);
+		rect(boxLeft, boxTop, boxWidth, boxHeight, MainWidth * 0.02)
+		push()
+		rect(boxLeft, boxTop, boxWidth, boxHeight, MainWidth * 0.02)
+		drawingContext.clip()
+		push();
+		noStroke();
+		fill(0, 255, 255, map(0.8, 0, 1, 10, 60));
+		rect(capacitorX - fieldWidth / 2, boxTop, fieldWidth, boxHeight);
+		stroke(0, 255, 255, 80);
+		strokeWeight(1.5);
+		line(capacitorX - fieldWidth / 2, boxTop, capacitorX - fieldWidth / 2, boxTop + boxHeight);
+		line(capacitorX + fieldWidth / 2, boxTop, capacitorX + fieldWidth / 2, boxTop + boxHeight);
+		pop();
+		if(isResizing) {
+			Delta = 0;
+			isResizing = false;
+		}
+		for (let i = 0; i < e.count; i++) {
+			const pastX = e.progress[i];			
+			e.progress[i] += Delta / e.period;
+			let passes = floor((e.progress[i] - 450) / 1000) - floor((pastX - 450) / 1000);
+			if (passes > 0) {
+				game.electron.eV = BigNumber.add(game.electron.eV, passes);
+			}
+			e.progress[i] %= 1000;
+			let ElectronX = (e.progress[i] / 1000 * MainWidth / 2) + MainWidth / 4;
+			let ElectronY = boxTop + boxHeight * e.y[i] + sin(ElectronX * 0.05) * 3;
+			DrawElectron(ElectronX, ElectronY);
+			if (e.progress[i] > 450 && e.progress[i] < 550) {
+				let LightningX1 = random(ElectronX - MainWidth / 40,ElectronX + MainWidth / 40);
+				let LightningY1 = random(ElectronY - MainHeight / 40, ElectronY + MainHeight / 40);
+				let LightningX2 = random(ElectronX - MainWidth / 40,ElectronX + MainWidth / 40);
+				let LightningY2 = random(ElectronY - MainHeight / 40, ElectronY + MainHeight / 40);
+				drawLightning(LightningX1, LightningY1, LightningX2, LightningY2);
+			}
+		}
+		pop()
+	}
+
+	function DrawElectron(x, y) {
+		noStroke();
+		let ElectronColor = color(0, 255, 255);
+		let MaxRadius = 42 + sin(frameCount * 0.1) * 4; 
+		for (let r = MaxRadius; r > 0; r--) {
+			ElectronColor.setAlpha(Math.pow(1 - r / MaxRadius, 3) * 200);
+			fill(ElectronColor);
+			circle(x, y, r);
+		}
+
+		let CoreRadius = 13 + sin(frameCount * 0.1) * 2;
+		for (let r = CoreRadius; r > 0; r--) {
+			fill(255, 255, 255, map(r / CoreRadius, 0, 1, 255, 0));
+			circle(x, y, r);
+		}
 	}
 	
 	function drawLightning(x1, y1, x2, y2) {
